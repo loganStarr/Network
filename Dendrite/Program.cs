@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 
 namespace Dendrite
 {
@@ -11,13 +12,17 @@ namespace Dendrite
             Func<double, double> derivative;
             public ActivationFunction(Func<double, double> function, Func<double, double> derivative)
             {
-                this.function = function;
+                //this.function = function;
                 //this.derivative = derivative;
             }
 
             public double Function(double input)
             {
-                return function.Invoke(input);
+                if (input < 0)
+                {
+                    return 0;
+                }
+                return 1;
             }
 
             public double Derivative(double input)
@@ -51,6 +56,7 @@ namespace Dendrite
             public Layer[] layers;
             public ErrorFunction errorFunc;
             public double[][] Inputs;
+            public ActivationFunction Activation;
             public NeuralNetwork(ActivationFunction activation, ErrorFunction errorFunc, double[][] Inputs,
             params int[] neuronsPerLayer)
             {
@@ -66,6 +72,8 @@ namespace Dendrite
                         layers[i] = new Layer(activation, neuronsPerLayer[i], layers[i-1]);
                     }
                 }
+                ;
+                Activation = activation;
                 this.Inputs = Inputs;
             }
             public void Randomize(Random random, double min, double max)
@@ -78,12 +86,22 @@ namespace Dendrite
             public double[] Compute(double[] inputs)
             {
                 double[] doubles;
-                layers[0].Outputs = inputs;
-                for (int i = 1; i < inputs.Length; i++)
+                
+                for (int i = 0; i < layers[0].Neurons.Length; i++)
                 {
+                    layers[0].Neurons[i].Output = inputs[i];
+                }
+                for (int i = 1; i < layers.Length - 1; i++)
+                {
+
                     doubles = layers[i].Compute();
                 }
-                return layers[layers.Length - 1].Compute();
+                doubles = layers[layers.Length - 1].Compute();
+                for (int i = 0; i < doubles.Length; i++)
+                {
+                    doubles[i] = Activation.Function(doubles[i]);
+                }
+                return doubles;
             }
             public double GetError(double[][] inputs, double[][] desiredOutputs)
             {
@@ -93,7 +111,7 @@ namespace Dendrite
                     double[] doubles = Compute(inputs[i]);
                     for (int x = 0; x < doubles.Length; x++)
                     {
-                        error = desiredOutputs[i][x] - doubles[x];
+                        error += Math.Abs(desiredOutputs[i][x] - doubles[x]);
                     }
                 }
                 return error;
@@ -102,14 +120,12 @@ namespace Dendrite
         public class Layer
         {
             public Neuron[] Neurons { get; }
-            public double[] Outputs;
 
             public Layer(ActivationFunction activation, int neuronCount, Layer previousLayer) 
             {
 
 
                 Neurons= new Neuron[neuronCount];
-                Outputs= new double[neuronCount];
                 for (int i = 0; i < neuronCount; i++)
                 {
                     if (previousLayer != null)
@@ -122,6 +138,7 @@ namespace Dendrite
                     }
                 }
             }
+          
             public void Randomize(Random random, double min, double max)
             {
                 for (int i = 0; i < Neurons.Length; i++)
@@ -145,7 +162,7 @@ namespace Dendrite
             public double bias;
             public Dendrite[] dendrites;
             public double Output;
-            public double Input;
+            public double Sum;
             public ActivationFunction Activation { get; set; }
 
            
@@ -183,7 +200,9 @@ namespace Dendrite
                 {
                     Total += dendrites[i].Compute();
                 }
-                return Total + bias;
+                Sum = Total + bias;
+                Output = Activation.Derivative(Sum);
+                return Output;
             }
         }
         public static void Mutate(NeuralNetwork net, Random random, double mutationRate)
@@ -256,11 +275,21 @@ namespace Dendrite
                 
             }
         }
+        public static double MinError = 10000;
 
         public static void Train((NeuralNetwork net, double fitness)[] population, Random random, double mutationRate, double[][] Inputs, double[][] Output)
         {
-            Array.Sort(population, (a, b) => (int)a.net.GetError(Inputs,Output) );
 
+            ;
+            for (int i = 0; i < population.Length; i++)
+            {
+                population[i].fitness = -(population[i].net.GetError(Inputs,Output));
+            }
+            Array.Sort(population, (a, b) => a.fitness.CompareTo(b.fitness));
+            if (population[0].net.GetError(Inputs, Output) < MinError)
+            {
+                MinError = population[0].net.GetError(Inputs, Output); // it's not jover 
+            }
             int start = (int)(population.Length * 0.1);
             int end = (int)(population.Length * 0.9);
 
@@ -270,7 +299,7 @@ namespace Dendrite
                 Crossover(population[random.Next(start)].net, population[i].net, random);
                 Mutate(population[i].net, random, mutationRate);
             }
-
+            
             //Removes the worst performing networks
             for (int i = end; i < population.Length; i++)
             {
@@ -305,17 +334,24 @@ namespace Dendrite
             inputs[1] = new double[] { 1, 0 };
             inputs[2] = new double[] { 0, 1 };
             inputs[3] = new double[] { 0, 0 };
-            double[] outputs = new double[] {0,1,1,0};
-            
+            double[][] outputs = new double[4][];
+            outputs[0] = new double[] { 0 };
+            outputs[1] = new double[] { 1 };
+            outputs[2] = new double[] { 1 };
+            outputs[3] = new double[] { 0 };
             (NeuralNetwork net, double fitness)[] population = new (NeuralNetwork net, double fitness)[50];
             for (int i = 0; i < population.Length; i++)
             {
-                population[i].net = new NeuralNetwork(new ActivationFunction(null, null), new ErrorFunction(null, null), ints);
+                population[i].net = new NeuralNetwork(new ActivationFunction(null, null), new ErrorFunction(null, null), inputs, ints);
                 population[i].net.Randomize(new Random(), 0,10);
+                ;
             }
+            int generation = 0;
             while (true)
             {
-                Train(population,new Random(),0.1,inputs,output);
+                generation++;
+                Train(population,new Random(),0.1,inputs,outputs);
+                ;
             }
             Console.WriteLine("Hello, World!");
         }
