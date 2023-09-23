@@ -1,59 +1,51 @@
-﻿//using System;
-//using System.Collections.Generic;
-//using System.Linq;
-//using System.Text;
-//using System.Threading.Tasks;
-//using static Dendrite.Program;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-//namespace Dendrite
-//{
-//    public class Neuron
-//    {
-//        public double bias;
-//        public Dendrite[] dendrites;
-//        public double Output;
-//        public double Sum;
-//        public ActivationFunction Activation { get; set; }
+using static Dendrite.Program;
 
+namespace Dendrite
+{
+     public class Layer
+    {
+        public Neuron[] Neurons { get; }
 
-
-//        public Neuron(ActivationFunction activation, Neuron[] previousNerons)
-//        {
-//            Activation = activation;
-//            if (previousNerons != null)
-//            {
-//                dendrites = new Dendrite[previousNerons.Length];
-//                for (int i = 0; i < dendrites.Length; i++)
-//                {
-//                    dendrites[i] = new Dendrite(previousNerons[i], this, 0);
-//                }
-//            }
+        public Layer(ActivationFunction activation, int neuronCount, Layer previousLayer)
+        {
 
 
-//        }
-//        public void Randomize(Random random, double min, double max)
-//        {
-//            if (dendrites != null)
-//            {
-//                for (int i = 0; i < dendrites.Length; i++)
-//                {
-//                    dendrites[i].Weight = random.NextDouble() * max - min;
-//                }
-//                bias = random.NextDouble() * max - min;
-//            }
+            Neurons = new Neuron[neuronCount];
+            for (int i = 0; i < neuronCount; i++)
+            {
+                if (previousLayer != null)
+                {
+                    Neurons[i] = new Neuron(activation, previousLayer.Neurons);
+                }
+                else
+                {
+                    Neurons[i] = new Neuron(activation, null);
+                }
+            }
+        }
 
-//        }
-//        public double Compute()
-//        {
-//            double Total = 0;
-//            for (int i = 0; i < dendrites.Length; i++)
-//            {
-//                Total += dendrites[i].Compute();
-//            }
-//            Sum = Total + bias;
-//            Output = Activation.Derivative(Sum);
-//            ;
-//            return Output;
-//        }
-//    }
-//}
+        public void Randomize(Random random, double min, double max)
+        {
+            for (int i = 0; i < Neurons.Length; i++)
+            {
+                Neurons[i].Randomize(random, min, max);
+            }
+        }
+        public double[] Compute()
+        {
+            double[] doubles = new double[Neurons.Length];
+            for (int i = 0; i < Neurons.Length; i++)
+            {
+                doubles[i] = Neurons[i].Compute();
+            }
+            return doubles;
+        }
+    }
+}
+
